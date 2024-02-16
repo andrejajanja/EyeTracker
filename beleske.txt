@@ -1,0 +1,75 @@
+----Pitanja:
+    - Zasto ima bias ka gornjem levom uglu monitora?
+    -ZASTO NE RADI KADA JE KAMERA DOLE
+
+----MUDROSTI:
+    --KAMERA:
+
+    -Kada hoces da promenis inicijalnu poziciju kamere i gde ona gleda,
+    menjas sledece parametre:
+    kamera.napred, kamera.pozicija, kamera.yaw
+
+    --Teksture:
+    -kada se koristi glfw.poll_events() umesto wait_events() radi
+    dinamicka tekstura preko videa za plocu
+
+----Umotvorine:
+    koordinatni pocetak slika sa ploce je njegov gornji levi ugao. 
+    prva tacka ploce: -3.2,2.4
+
+    Prve cetiri tacke monitora za kalibraciju
+    v -80 -45 -2.57459855079651---4
+    v -80 45 -2.57459855079651---1
+    v 80 -45 -2.57459855079651---3
+    v 80 45 -2.57459855079651---2
+
+    #pocetak = time.time()
+    #print("{:.1f}ms".format((time.time()-pocetak)*1000))
+
+URADJENO:
+    -sredi IO za GLFW menije--NISTA
+    -ubacivanje modela preko menija gore - bez moranja--
+    -ubaci monitor i kameru modele++
+
+    -ubaci skelet++
+
+    skelet:++
+    konstrukcija sa dve sfere koje predstavljaju oci++
+    te dve sfere da budu zakacene za oci preko dveju sporednih tacaka++
+    nacrtaj skelet na papiru pre no sto krenes ista da radis++
+
+
+    -ubaci da kamera moze da ide gore/dole kada se pritisne shift+w/s
+
+    -skripta za normalizaciju inputa - cetvorougao u pravougaonik++ TREBA JOS DA SE TESTIRA
+    -koja u txt file smesta x i y offset za sva 4 ugla monintora++
+    -funkcija koja racuna offset po uglu monitora++
+    -promeni ucitaj_offsete_i_duzi, upisi_offsete, vrati_offsete, vrati_offsete
+    prava_oko_z da mogu da funkcionisu sa koordinatama umesto sa uglovima++
+
+    -takode dodaj funkciju koja od koordinata tacke pravi koordinate misa ++
+    -dodaj da moze da se pomocu koeficijenta dodaje/mnozi koliko ide gore/dole zenica tacka++
+
+ZA URADITI:
+
+-resi problem sa dijagonalom i offsetom
+
+izvestaj za ovo iznad -> 
+Problem je u sferi koja simulira oko i pomeranju tacke pogleda po njoj. Moras da
+nadjes nacin da se pogled offsetovano krece po sferi, tako da se "uzak"
+cetvorougao rasiri
+
+-napravi da pogled bude precizan i kada se glava pomeri sa originalne pozicije
+
+1
+!BITNA STVAR! - ne radi offset preko algoritma sa 4 offset vektora, 
+prvo resi taj problem jer ako to ne radi, nece nista drugo raditi !!!!!!!!
+
+2
+!BITNA STVAR! - moras da napravis algoritam koji ugladjuje pomeraj od inicijalne pozicije
+na kojoj je odradjena kalibracija
+
+TAKODJE BITNA STVAR - nadji nacin da vestackim putem napravis beskonacnu rezoluciju
+bilo kog merenja, ovo moze da pomogne u raznim poduhvatima u buducnosti
+
+za ovo iznad <- probaj to da primenis na povecanje rezolucije

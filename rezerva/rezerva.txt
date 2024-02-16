@@ -1,0 +1,649 @@
+
+#OVO JE ZA PROGRAM 2 ORIGINALAN CODE
+while True:
+    _,slika = snimak.read()
+    slika, niz = provuci_kroz_ai(detector, predictor, slika, z_ploca)
+    
+    cv2.imshow("Q za gasenje", slika)
+
+    kor = mis_offset(niz, 1, z_ploca, z_monitora, Loffseti, Lduzi, Lbaze)
+    kords.append(kor)
+    kor = mis_offset(niz, 4, z_ploca, z_monitora, Doffseti, Dduzi, Dbaze)
+    kords.append(kor)
+
+    kords = saberi_listu(kords)
+    kords = podeli_listu(kords, 2)
+    kords = razlika_tacaka(tackice_monitor[0],kords)
+
+    x = kords[0]/16.0*1920
+    y = kords[1]/9.0*1080
+
+    x,y = provera_x_y(x,y)
+
+    pyautogui.moveTo(int(x),int(y))
+    kords = []
+
+    if cv2.waitKey(20) & 0xFF == ord('q'):
+        break
+
+
+while True:
+    
+    if cv2.waitKey(20) & 0xFF == ord('q'):
+        break
+
+
+#ovo je za slikanje slike na klik E
+    if cv2.waitKey(20) & 0xFF == ord('e'):
+        cv2.imwrite("{}.jpg".format(brojac), slika)
+        brojac += 1
+
+tacke = [
+    -0.5, -0.5,  0.5, 0.0, 0.0,
+    0.5, -0.5,  0.5, 1.0, 0.0,
+    0.5,  0.5,  0.5, 1.0, 1.0,
+    -0.5,  0.5,  0.5, 0.0, 1.0,
+
+    -0.5, -0.5, -0.5, 0.0, 0.0,
+    0.5, -0.5, -0.5, 1.0, 0.0,
+    0.5,  0.5, -0.5, 1.0, 1.0,
+    -0.5,  0.5, -0.5, 0.0, 1.0,
+
+    0.5, -0.5, -0.5, 0.0, 0.0,
+    0.5,  0.5, -0.5, 1.0, 0.0,
+    0.5,  0.5,  0.5, 1.0, 1.0,
+    0.5, -0.5,  0.5, 0.0, 1.0,
+
+    -0.5,  0.5, -0.5, 0.0, 0.0,
+    -0.5, -0.5, -0.5, 1.0, 0.0,
+    -0.5, -0.5,  0.5, 1.0, 1.0,
+    -0.5,  0.5,  0.5, 0.0, 1.0,
+
+    -0.5, -0.5, -0.5, 0.0, 0.0,
+    0.5, -0.5, -0.5, 1.0, 0.0,
+    0.5, -0.5,  0.5, 1.0, 1.0,
+    -0.5, -0.5,  0.5, 0.0, 1.0,
+
+    0.5,  0.5, -0.5, 0.0, 0.0,
+    -0.5,  0.5, -0.5, 1.0, 0.0,
+    -0.5,  0.5,  0.5, 1.0, 1.0,
+    0.5,  0.5,  0.5, 0.0, 1.0]
+
+indeksi = [
+    0,  1,  2,  2,  3,  0,
+    4,  5,  6,  6,  7,  4,
+    8,  9, 10, 10, 11,  8,
+    12, 13, 14, 14, 15, 12,
+    16, 17, 18, 18, 19, 16,
+    20, 21, 22, 22, 23, 20]
+
+
+def ucitaj_sliku_pygame(naziv):
+    slika = pygame.image.load(naziv)
+    slika = pygame.transform.flip(slika, False, True)
+    sirina, visina = slika.get_rect().size
+    slika_data = pygame.image.tostring(slika, "RGB")
+    return slika_data, sirina, visina
+
+
+
+from sve import *
+
+
+kamera = Kamera(0.0,4.0,10.0,0.25)
+sirina,visina = 1280,720
+poslednjex, poslednjey = sirina/2 , visina/2
+prvi_mis = True
+fov = 45
+ime = "stolica" #ime modela
+
+tacke, indeksi = Ucitavanje_obj.ucitaj_obj("modeli/{}.obj".format(ime))
+
+def ucitaj_model_opengl(vertarobj, vertbuffobj, tacke):
+    glBindVertexArray(vertarobj)
+    glBindBuffer(GL_ARRAY_BUFFER, vertbuffobj)
+    glBufferData(GL_ARRAY_BUFFER, tacke.nbytes, tacke, GL_STATIC_DRAW)
+    glEnableVertexAttribArray(0)
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, tacke.itemsize * 8, ctypes.c_void_p(0))
+    glEnableVertexAttribArray(1)
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, tacke.itemsize * 8, ctypes.c_void_p(12))
+    glEnableVertexAttribArray(2)
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, tacke.itemsize * 8, ctypes.c_void_p(20))
+
+def pozovi_ucitan_model_opengl(veratobj, tekstura):
+    pass
+
+def mis_pogled_callback(prozor, xpos, ypos):
+    global prvi_mis, poslednjex, poslednjey
+    if prvi_mis:
+        poslednjex = xpos
+        poslednjey = ypos
+        prvi_mis = False
+
+    xoffset = xpos - poslednjex
+    yoffset = poslednjey - ypos
+
+    poslednjex = xpos
+    poslednjey = ypos
+
+    kamera.pomeranje_misa(xoffset,yoffset)
+
+def mis_ulazi_callback(prozor, usao):
+    global prvi_mis
+    if usao:
+        prvi_mis = False
+    else:
+        prvi_mis = True
+
+def prozor_promena_velicine(prozor, sirina, visina):
+    glViewport(0, 0, sirina, visina)
+    projection = pyrr.matrix44.create_perspective_projection_matrix(fov, sirina / visina, 0.1, 100)
+    glUniformMatrix4fv(lokacija_pogleda, 1, GL_FALSE, projection)
+
+if not glfw.init():
+    raise Exception("glfw nije inicijalizovan")
+
+prozor = glfw.create_window(sirina, visina, "Vesic Goran", None, None)
+
+if not prozor:
+    glfw.terminate()
+    raise Exception("glfw prozor nije uspeo da se kreira")
+
+
+#POSTAVLJANJE CALLBACK FUNKCIJA:
+glfw.set_window_pos(prozor, 400, 200)
+glfw.set_window_size_callback(prozor, prozor_promena_velicine)
+glfw.set_cursor_pos_callback(prozor, mis_pogled_callback)
+glfw.set_cursor_enter_callback(prozor,mis_ulazi_callback)
+glfw.make_context_current(prozor)
+
+shader = compileProgram(compileShader(vertex_src, GL_VERTEX_SHADER), compileShader(fragment_src, GL_FRAGMENT_SHADER))
+
+VAO = glGenVertexArrays(1)
+glBindVertexArray(VAO)
+VBO = glGenBuffers(1)
+glBindBuffer(GL_ARRAY_BUFFER, VBO)
+glBufferData(GL_ARRAY_BUFFER, tacke.nbytes, tacke, GL_STATIC_DRAW)
+
+#EBO = glGenBuffers(1)
+#glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
+#glBufferData(GL_ELEMENT_ARRAY_BUFFER, indeksi.nbytes, indeksi, GL_STATIC_DRAW)
+glEnableVertexAttribArray(0)
+glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, tacke.itemsize * 8, ctypes.c_void_p(0))
+glEnableVertexAttribArray(1)
+glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, tacke.itemsize * 8, ctypes.c_void_p(12))
+glEnableVertexAttribArray(2)
+glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, tacke.itemsize * 8, ctypes.c_void_p(20))
+
+
+tekstura = glGenTextures(1)
+kocka1_tex = ucitaj_texturu(tekstura, "teksture/{}Color.jpg".format(ime))
+
+glUseProgram(shader)
+glClearColor(0,0.2,0.2,1)
+glEnable(GL_DEPTH_TEST)
+glEnable(GL_BLEND)
+
+lokacija_modela = glGetUniformLocation(shader, "model")
+mat_projekcije = glGetUniformLocation(shader, "projection")
+lokacija_pogleda = glGetUniformLocation(shader, "view")
+
+s = 0.1
+kocka1 = pyrr.matrix44.create_from_translation(pyrr.Vector3([0,0,0]))
+razmera = pyrr.matrix44.create_from_scale(pyrr.Vector3([s,s,s]))
+kocka1 = pyrr.matrix44.multiply(razmera,kocka1)
+
+
+#pogled = pyrr.matrix44.create_look_at(pyrr.Vector3([0,0,-5]),pyrr.Vector3([0,0,0]),pyrr.Vector3([0,1,0]))
+#glUniformMatrix4fv(lokacija_pogleda, 1, GL_FALSE, pogled)
+
+projekcija = pyrr.matrix44.create_perspective_projection_matrix(fov, sirina/visina, 0.1, 100.0)
+glUniformMatrix4fv(mat_projekcije, 1, GL_FALSE, projekcija)
+
+while not glfw.window_should_close(prozor):
+    glfw.poll_events()
+    glClear(GL_COLOR_BUFFER_BIT| GL_DEPTH_BUFFER_BIT)
+
+
+    pogled = kamera.vrati_matricu_pogleda()
+    glUniformMatrix4fv(lokacija_pogleda, 1, GL_FALSE, pogled)
+
+    #vreme = glfw.get_time()
+
+    #rotacija_x = pyrr.Matrix44.from_x_rotation(0.5*vreme)
+    #rotacija_y = pyrr.Matrix44.from_y_rotation(0.8*vreme)
+
+    #rotacija = pyrr.matrix44.multiply(rotacija_x, rotacija_y)
+    #model = pyrr.matrix44.multiply(razmera, rotacija)
+    #model = pyrr.matrix44.multiply(model, translacija)
+
+    glBindVertexArray(VAO)
+    glBindTexture(GL_TEXTURE_2D, tekstura)
+    glUniformMatrix4fv(lokacija_modela, 1, GL_FALSE, kocka1)
+    glDrawArrays(GL_TRIANGLES, 0 , len(indeksi))
+
+    glfw.swap_buffers(prozor)
+    
+glfw.terminate()
+
+
+import numpy as np
+
+def izvuci_brojeve_iz_liste(lista, zavrsava, tip):
+    '''
+    Argumenti:\n
+    Lista <- lista odakle da se izvuku brojevi\n
+    zavrsava <- lista u koju se ubacuju izvuceni brojevi\n
+    tip <- (string) kog tipa brojevi treba da budu (float/int)\n
+    '''
+    for element in lista:
+        if tip == 'float':
+            zavrsava.append(float(element))
+        elif tip == 'int':
+            zavrsava.append(int(element)-1)
+
+def sortiran_vertex_buffer(cale, tack, teks, norm, buffer):
+    '''
+    OVA FUNKCIJA SE KORISTI KADA SE ZA CRTANJE OBLIKA KORISTI glDrawArrays()
+    \nArgumenti:\n
+    cale <- lista u kojoj su smestene vrednosti iz kolona koje pocinju sa f u .obj file-u\n
+    tack <- lista sa kord svih tacaka\n
+    tesk <- lista sa kord svih tekstura\n
+    norm <- lista sa kord svih normala\n
+    buffer <- lista koja ce se koristiti da se napuni OpenGLov buffer\n\n
+
+    \nOblik buffera nakon izvrsavanja ove fje:\n
+    Tac-x, Tac-y, Tac-z, Tex-u, Tex-v, Norm-x, Norm-y, Norm-z
+    '''
+    for i, index in enumerate(cale):
+        if i%3 == 0:
+            pocetak = index*3
+            kraj = pocetak + 3 
+            buffer.extend(tack[pocetak:kraj])
+        if i%3 == 1:
+            pocetak = index*2
+            kraj = pocetak + 2 
+            buffer.extend(teks[pocetak:kraj])
+        if i%3 == 2:
+            pocetak = index*3
+            kraj = pocetak + 3 
+            buffer.extend(norm[pocetak:kraj])
+
+def nesortiran_vertex_buffer(cale, tack, teks, norm, buffer):
+    print("Mora se uradi.")
+
+def ispisi_buffer(buffer):
+    print("uradi")
+
+def ucitaj_obj(ime, sortirano = True, ispisi = False):
+    '''
+    \nSta radi:\n
+    Ucitava .obj file u promenljive koje su spremne da se daju OpenGlu da nacrta sadrzaj datog filea.\n
+    \nArgumenti:\n
+    ime <- (string) ime .obj fila sa njegovom lokacijom\n
+    \nsortirano <- (bool)(opciono)\n 
+    True - output je prilagodjen koriscenju glDrawArray() \n
+    False - output je prilagodjen koriscenju glDrawElements()\n
+    \nispisi <- (bool)(opciono) \n
+    True - ispisuje ceo buffer na terminal\n
+    Flase - upisuje baffer u dve promenljive (tacke, indeksi)\n
+    '''
+
+    buffer = []
+
+    f = open(ime, "r")
+    linije = f.readlines()
+    f.close()
+
+    tacke = []
+    teksture = []
+    normale = []
+
+    sve = []
+    indeksi = []
+
+    for linija in linije:
+        linija = linija.split()
+        if linija == []:
+            continue
+        if linija[0] == 'v':
+            izvuci_brojeve_iz_liste(linija[1:], tacke, 'float')
+        elif linija[0] == 'vn':
+            izvuci_brojeve_iz_liste(linija[1:],normale, 'float')
+        elif linija[0] == 'vt':
+            izvuci_brojeve_iz_liste(linija[1:-1],teksture, 'float')
+        elif linija[0] == 'f':
+            for l in linija[1:]:
+                l = l.split('/')
+                izvuci_brojeve_iz_liste(l, sve, 'int')
+                indeksi.append(int(l[0])-1)
+
+    if sortirano:
+        sortiran_vertex_buffer(sve, tacke, teksture, normale, buffer)
+    else:
+        nesortiran_vertex_buffer(sve, tacke, teksture, normale, buffer)
+
+    if ispisi:
+        ispisi_buffer(buffer)
+    else:
+        tacke = np.array(buffer, dtype=np.float32)
+        indeksi = np.array(indeksi, dtype=np.uint32)
+        return tacke, indeksi
+
+
+def tastatura(self, smer, brzina):
+        if smer == "napred":
+            self.pozicija += self.napred*brzina
+
+        if smer == "nazad":
+            self.pozicija -= self.napred*brzina
+
+        if smer == "levo":
+            self.pozicija -= self.desno*brzina
+
+        if smer == "desno":
+            self.pozicija += self.desno*brzina
+
+v -32 24 -42.90029144287109
+v 32 24 -42.90029144287109
+v -32 -24 -42.90029144287109
+v 32 -24 -42.90029144287109
+
+detector = dlib.simple_object_detector("resursi/c.svm")
+predictor = dlib.shape_predictor("resursi/c.dat")
+slika = cv2.imread("resursi/7.jpg")
+
+#ucitaj_model_opengl(VAO[2],VBO[2],tacke_sfera)
+#sfera_tex = ucitaj_texturu(tekstura[2], "resursi/sferaColor.jpg")
+
+#tacke_ploca, indeksi_ploca = Ucitavanje_obj.ucitaj_obj("resursi/ploca.obj")
+#pocetak = tacke_ploca[0:2]
+#print(pocetak)
+
+slika = cv2.imread("resursi/7.jpg")
+#cv2.circle(slika, (50,100), 2,zelena,-1)
+
+
+detector = dlib.simple_object_detector("resursi/c.svm")
+predictor = dlib.shape_predictor("resursi/c.dat")
+
+slika, niz = provuci_kroz_ai(detector,predictor, slika)
+niz = skelet_koordinate_x_y_z(niz,-15.0)
+#print(niz)
+
+if f.readline != "":
+        f = obrisi_sadrzaj(fajl, f)
+
+-51.5269251180715 5.262063876381134 -69.32220074349225 66.99348067575998
+-41.9100627077471 1.862549033440061 -74.11751823272488 70.99467396183215
+105.87573030613197 4.018209164898124 -116.37801365519178 68.20206660295315
+112.43255158552257 -2.019284334805093 -122.72992488613224 74.8587544986713
+39.65771637189466 26.999221417859246 -103.47332561446903 78.83860310399146
+53.86947829590899 20.786379385891635 -112.93442226786625 85.67930020653982
+-51.51915761620124 26.822236215716103 -69.37295258336987 78.92557172528456
+-42.30075127583653 23.854915736388236 -73.77391672021217 82.5392112131429
+
+
+def offset_uglovi(alfa, beta, o, duzi):
+    alfeo = izdvoj_alfa(o)
+    beteo = izdvoj_beta(o)
+
+    at = abs(alfa - alfeo[0])
+    bt = abs(alfa - alfeo[1])
+    ct = abs(alfa - alfeo[2])
+    dt = abs(alfa - alfeo[3])
+
+    ofala = alfeo[0]*(1-at/)*(1-at/)*(1-at/)
+    ofalb = alfeo[1]*(1-bt/)*(1-bt/)*(1-bt/)
+    ofalc = alfeo[2]*(1-ct/)*(1-ct/)*(1-ct/)
+    ofald = alfeo[3]*(1-dt/)*(1-dt/)*(1-dt/)
+    offalfa = ofala + ofalb + ofalc + ofald
+
+    at = abs(beta - beteo[0])
+    bt = abs(beta - beteo[1])
+    ct = abs(beta - beteo[2])
+    dt = abs(beta - beteo[3])
+
+    ofbea = beteo[0]*(1-at/)*(1-at/)*(1-at/)
+    ofbeb = beteo[1]*(1-bt/)*(1-bt/)*(1-bt/)
+    ofbec = beteo[2]*(1-ct/)*(1-ct/)*(1-ct/)
+    ofbed = beteo[3]*(1-dt/)*(1-dt/)*(1-dt/)
+    offbeta = ofbea + ofbeb + ofbec + ofbed
+
+    return offalfa, offbeta
+
+def ucitaj_duzi(duzi, baze):
+    '''
+    AB - 0/1\n
+    BC - 2/3\n
+    CD - 4/5\n
+    DA - 6/7\n
+    DB - 8/9\n
+    AC - 10/11\n
+    '''
+    duzalfa = abs(baze[0]-baze[2])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[1]- baze[3])
+    duzi.append(duzbeta)
+
+    duzalfa = abs(baze[2] - baze[4])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[3] - baze[5])
+    duzi.append(duzbeta)
+
+    duzalfa = abs(baze[4] - baze[6])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[5] - baze[7])
+    duzi.append(duzbeta)
+
+    duzalfa = abs(baze[6] - baze[0])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[7] - baze[1])
+    duzi.append(duzbeta)
+
+    duzalfa = abs(baze[6] - baze[2])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[7] - baze[3])
+    duzi.append(duzbeta)
+
+    duzalfa = abs(baze[0] - baze[4])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[1] - baze[5])
+    duzi.append(duzbeta)
+
+def offset_uglovi(alfa, beta, o, duzi):
+    '''
+    AB - 0/1\n
+    BC - 2/3\n
+    CD - 4/5\n
+    DA - 6/7\n
+    DB - 8/9\n
+    AC - 10/11\n
+    '''
+    alfeo = izdvoj_alfa(o)
+    beteo = izdvoj_beta(o)
+
+    at = abs(alfa - alfeo[0])
+    bt = abs(alfa - alfeo[1])
+    ct = abs(alfa - alfeo[2])
+    dt = abs(alfa - alfeo[3])
+
+    #print(at, bt, ct, dt)
+
+    ofala = alfeo[0]*(1-at/duzi[10])*(1-at/duzi[0])*(1-at/duzi[6])
+    ofalb = alfeo[1]*(1-bt/duzi[8])*(1-bt/duzi[0])*(1-bt/duzi[2])
+    ofalc = alfeo[2]*(1-ct/duzi[10])*(1-ct/duzi[2])*(1-ct/duzi[4])
+    ofald = alfeo[3]*(1-dt/duzi[8])*(1-dt/duzi[4])*(1-dt/duzi[6])
+    offalfa = ofala + ofalb + ofalc + ofald
+
+    at = abs(beta - beteo[0])
+    bt = abs(beta - beteo[1])
+    ct = abs(beta - beteo[2])
+    dt = abs(beta - beteo[3])
+    #print(at, bt, ct, dt)
+
+    ofbea = beteo[0]*(1-at/duzi[11])*(1-at/duzi[1])*(1-at/duzi[7])
+    ofbeb = beteo[1]*(1-bt/duzi[9])*(1-bt/duzi[1])*(1-bt/duzi[3])
+    ofbec = beteo[2]*(1-ct/duzi[11])*(1-ct/duzi[3])*(1-ct/duzi[5])
+    ofbed = beteo[3]*(1-dt/duzi[9])*(1-dt/duzi[5])*(1-dt/duzi[7])
+    offbeta = ofbea + ofbeb + ofbec + ofbed
+
+    return offalfa, offbeta
+
+
+def racunaj_ugao(x, alfa):
+    if alfa:
+        return k*math.atan(x)-90
+    else:
+        return 90-k*math.atan(x)
+
+def vrati_offsete_ugao(Ct,At, Tm):
+    '''
+    Ct - zenica\n
+    At - centar oka\n
+    Tm - tacka sa koordinatama ugla monitora\n
+    '''
+    xkp,ykp = prava_preko_z(At,Ct)
+    xkk, ykk = prava_preko_z(At,Tm)
+
+    alfa = racunaj_ugao(xkp,True)
+    beta = racunaj_ugao(ykp,False)
+
+    offset_a = racunaj_ugao(xkk,True) - alfa
+    offset_b = racunaj_ugao(ykk,False) - beta
+
+    return offset_a,offset_b, alfa, beta
+
+
+tacke = np.array([0,-8,0,0,8,0], dtype=np.float32)
+ucitaj_liniju(VAO[3], VBO[3], tacke)
+
+
+#duzi deo
+    duzalfa = abs(baze[0]-baze[2])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[1]- baze[3])
+    duzi.append(duzbeta)
+
+    duzalfa = abs(baze[2] - baze[4])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[3] - baze[5])
+    duzi.append(duzbeta)
+
+    duzalfa = abs(baze[4] - baze[6])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[5] - baze[7])
+    duzi.append(duzbeta)
+
+    duzalfa = abs(baze[6] - baze[0])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[7] - baze[1])
+    duzi.append(duzbeta)
+
+    duzalfa = abs(baze[6] - baze[2])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[7] - baze[3])
+    duzi.append(duzbeta)
+
+    duzalfa = abs(baze[0] - baze[4])
+    duzi.append(duzalfa)
+    duzbeta = abs(baze[1] - baze[5])
+    duzi.append(duzbeta)
+
+duzi.append(duzina_duzi(baze[0]-baze[1]))
+    duzi.append(duzina_duzi(baze[1]-baze[2]))
+    duzi.append(duzina_duzi(baze[2]-baze[3]))
+    duzi.append(duzina_duzi(baze[3]-baze[0]))
+    duzi.append(duzina_duzi(baze[0]-baze[2]))
+    duzi.append(duzina_duzi(baze[1]-baze[3]))
+
+def izracunaj_offset(x, y, ofseti, duzi, baze):
+    
+    t = (x,y)
+    at = duzina_duzi(baze[0]-t)
+    bt = duzina_duzi(baze[0]-t)
+    ct = duzina_duzi(baze[2]-t)
+    dt = duzina_duzi(baze[3]-t)
+
+    ofa =
+    ofb =
+    ofc =
+    ofd =
+
+    offset = ofa + ofb + ofc + ofd
+
+    return offset
+
+#ovo ne radi, ali ti i ne treba
+def nacrtaj_pravu_preko_z_sa_offsetom(niz, index_zenice, z_ploca, z_mon, VAO, shader_lok, pisi, offseti, duzi, baze):
+    '''
+    \nArgumenti:\n
+    niz - niz sa svih 6 obradjenih tacaka koje je dao AI\n
+    index_zenice - index na kom se nalazi tacka centra levog ili desnog oka\n
+    z - (float) z komponenta koordinata ploce\n
+    '''
+    x,y = jednako_2D(niz[index_zenice-1], niz[index_zenice+1])
+
+    Ct = niz[index_zenice]
+    At = (x,y,z_ploca)
+
+    xk,yk, xn, yn = prava_preko_z(At,Ct)
+    x = xk*z_mon + xn
+    y = yk*z_mon + yn
+    #print(alfa, beta)
+
+    da, db = izracunaj_offset(x, y, offseti, duzi)
+
+    if pisi:
+        print("a: {:.2f} --- b: {:.2f},, oa: {:.2f} --- ob: {:.2f}".format(x, y, da, db))
+
+    
+    kords = pozicija_rotacija_razmera_modela(P = Vector3([x,y,z_ploca]), Teta = [90, 0, 90],S = 10)
+
+    pozovi_liniju(VAO, kords, shader_lok)
+
+def nacrtaj_pravu_preko_z(niz, index_zenice,z, VAO, shader_lok, pisi):
+    '''
+    \nArgumenti:\n
+    niz - niz sa svih 6 obradjenih tacaka koje je dao AI\n
+    index_zenice - index na kom se nalazi tacka centra levog ili desnog oka\n
+    z - (float) z komponenta koordinata ploce\n
+    '''
+    x,y = jednako_2D(niz[index_zenice-1], niz[index_zenice+1])
+
+    Ct = niz[index_zenice]
+    At = (x,y,z)
+
+    xk,yk = prava_preko_z(At,Ct)
+    alfa = k*math.atan(xk)-90
+    beta = 90-k*math.atan(yk)
+
+    if pisi:
+        print("a: {:.2f} --- b: {:.2f}".format(alfa, beta))
+
+    kords = pozicija_rotacija_razmera_modela(P = Vector3([x,y,z]), Teta = [alfa, 0, beta],S = 10)
+
+    pozovi_liniju(VAO, kords, shader_lok)
+
+def racunaj_ugao(x, alfa):
+    if alfa:
+        return k*math.atan(x)-90
+    else:
+        return 90-k*math.atan(x)
+
+def vrati_offsete_ugao(Ct,At, Tm):
+    '''
+    Ct - zenica\n
+    At - centar oka\n
+    Tm - tacka sa koordinatama ugla monitora\n
+    '''
+    xkp,ykp = prava_preko_z(At,Ct)
+    xkk, ykk = prava_preko_z(At,Tm)
+
+    alfa = racunaj_ugao(xkp,True)
+    beta = racunaj_ugao(ykp,False)
+
+    offset_a = racunaj_ugao(xkk,True) - alfa
+    offset_b = racunaj_ugao(ykk,False) - beta
+
+    return offset_a,offset_b, alfa, beta
